@@ -1,0 +1,10 @@
+.vscode
+.DS_Store
+
+# python
+.ipynb_checkpoints
+__pycache__/
+*.py[cod]
+Untitled.ipynb
+Untitled[a-zA-Z0-9]*.ipynb
+Untitled-*.ipynb
