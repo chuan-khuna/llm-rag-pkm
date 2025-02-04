@@ -11,3 +11,6 @@ Untitled-*.ipynb
 
 
 .env
+
+rag-data/*
+!rag-data/.gitkeep
