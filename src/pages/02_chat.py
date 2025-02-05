@@ -56,7 +56,6 @@ def render_chat_messages(messages):
 
 embedding_model = embedding_model = OllamaEmbeddings(model=embedding_model_name)
 
-st.write('what is functional programming?')
 
 render_chat_messages(st.session_state.messages)
 
@@ -103,17 +102,11 @@ Here are the references that I found in the database:
 
 <INSTRUCTIONS>
 You must provide answer to the user question based on the DOCUMENTS provided above.
-When you generate answer from the DOCUMENTS please provide the reference id to the source, please use IEEE format, ie <your answer> [<ref_id>].
+
+When you generate answer from the DOCUMENTS.
+You must provide the reference id to the source. 
+Use IEEE format, for example <your answer from the DOCUMENT> [<ref_id>].
 </INSTRUCTIONS>
-
-
-<EXAMPLE>
-Question: What is functional programming?
-
-Answer: 
-- In computer science, functional programming is a programming paradigm where programs are constructed by applying and composing functions. [1] 
-- Functional programming is a stle of writing program. [2]
-</EXAMPLE>
 """
         with st.expander("RAG Prompt"):
             st.write(rag_prompt)
