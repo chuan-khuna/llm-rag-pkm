@@ -65,16 +65,14 @@ if prompt := st.chat_input("Message to LLM"):
     st.session_state.messages.append({"role": "user", "text": prompt})
 
     with st.chat_message("assistant"):
-        with st.spinner('Generating response...'):
+        stream_result = ""
 
-            stream_result = ""
+        def stream_data():
+            for chunk in llm_agent.stream(st.session_state.messages):
+                global stream_result
+                stream_result += chunk.content
+                yield chunk
 
-            def stream_data():
-                for chunk in llm_agent.stream(st.session_state.messages):
-                    global stream_result
-                    stream_result += chunk.content
-                    yield chunk
-
-            st.write_stream(stream_data)
+        st.write_stream(stream_data)
 
     st.session_state.messages.append({"role": "ai", "text": stream_result})

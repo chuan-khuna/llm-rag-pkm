@@ -84,10 +84,9 @@ if prompt := st.chat_input("Message to LLM"):
 
     # generate response and display it
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            old_messages = st.session_state.messages[1:]
+        old_messages = st.session_state.messages[1:]
 
-            rag_prompt = f"""
+        rag_prompt = f"""
 User question: {st.session_state.messages[-1]['text']}
 
 Here are the references that I found in the database:
@@ -116,14 +115,19 @@ Answer:
 - Functional programming is a stle of writing program. [2]
 </EXAMPLE>
 """
-            with st.expander("RAG Prompt"):
-                st.write(rag_prompt)
+        with st.expander("RAG Prompt"):
+            st.write(rag_prompt)
 
-            # response = llm_agent.chat(old_messages + [{'role': 'user', 'text': rag_prompt}])
-            response = llm_agent.chat([{'role': 'user', 'text': rag_prompt}])
+        stream_result = ""
 
-        st.write(response)
+        def stream_data():
+            for chunk in llm_agent.stream([{'role': 'user', 'text': rag_prompt}]):
+                global stream_result
+                stream_result += chunk.content
+                yield chunk
+
+        st.write_stream(stream_data)
         st.dataframe(query_df)
 
     # add message to history
-    st.session_state.messages.append({"role": "ai", "text": response})
+    st.session_state.messages.append({"role": "ai", "text": stream_result})
