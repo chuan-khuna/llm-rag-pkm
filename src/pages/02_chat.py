@@ -92,24 +92,36 @@ User question: {st.session_state.messages[-1]['text']}
 
 Here are the references that I found in the database:
 
+
+<DOCUMENTS>
+
 ```
 {query_df.to_markdown(index=False)}
 ```
 
-Please provide answer to the user question.
+</DOCUMENTS>
 
-When you generate answer from the reference please provide the reference id to the source, please use IEEE format, ie <your answer> [<ref_id>].
 
-Example:
+<INSTRUCTIONS>
+You must provide answer to the user question based on the DOCUMENTS provided above.
+When you generate answer from the DOCUMENTS please provide the reference id to the source, please use IEEE format, ie <your answer> [<ref_id>].
+</INSTRUCTIONS>
+
+
+<EXAMPLE>
 Question: What is functional programming?
+
 Answer: 
 - In computer science, functional programming is a programming paradigm where programs are constructed by applying and composing functions. [1] 
 - Functional programming is a stle of writing program. [2]
+</EXAMPLE>
 """
             with st.expander("RAG Prompt"):
                 st.write(rag_prompt)
 
-            response = llm_agent.chat(old_messages + [{'role': 'user', 'text': rag_prompt}])
+            # response = llm_agent.chat(old_messages + [{'role': 'user', 'text': rag_prompt}])
+            response = llm_agent.chat([{'role': 'user', 'text': rag_prompt}])
+
         st.write(response)
         st.dataframe(query_df)
 
