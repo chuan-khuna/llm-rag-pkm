@@ -1,0 +1,13 @@
+name: llm-learning-partner
+
+services:
+  chroma:
+    image: chromadb/chroma:0.5.23
+    environment:
+      - CHROMA_HOST_PORT=${CHROMA_PORT:-8000}
+      - CHROMA_SERVER_AUTHN_PROVIDER=chromadb.auth.token_authn.TokenAuthenticationServerProvider
+      - CHROMA_SERVER_AUTHN_CREDENTIALS=${CHROMA_SERVER_AUTHN_CREDENTIALS}
+    ports:
+      - ${CHROMA_PORT:-8000}:${CHROMA_PORT:-8000}
+    volumes:
+      - ./chroma_data:/index_data
