@@ -26,9 +26,6 @@ client = get_chroma_client(
     os.environ.get('CHROMA_SERVER_AUTHN_CREDENTIALS', 'password'),
 )
 
-# initalise state
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
 
 with st.sidebar:
     llm_model_name = st.selectbox("Select LLM Model", LLM_CHOICES, index=DEFAULT_LLM_IDX)
@@ -39,6 +36,8 @@ with st.sidebar:
         "Select Embedding Model", EMBEDDING_CHOICES, index=DEFAULT_EMBEDDING_IDX
     )
 
+    st.write('---')
+
     with st.spinner('Loading Chroma collection...'):
         collection = client.get_or_create_collection(
             name=CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"}
@@ -47,10 +46,7 @@ with st.sidebar:
         num_docs = collection.count()
         st.write(f'Number of documents in collection: {num_docs}')
 
-    with st.form('delete_chroma_collection'):
-        st.write('Delete Chroma collection')
-        delete_collection = st.form_submit_button('Delete collection')
-        if delete_collection:
+        if st.button('Delete collection'):
             with st.spinner('Deleting Chroma collection...'):
                 client.delete_collection(CHROMA_COLLECTION_NAME)
 
@@ -82,7 +78,7 @@ if st.button('Process data'):
             for chunk_idx, chunk in enumerate(chunks):
                 metadata = {'file': ref_path, 'chunk_id': chunk_idx + 1}
                 doc = chunk
-                embedding = embedding_model.embed_documents(doc)[0]
+                embedding = embedding_model.embed_query(content)
                 chunk_id = f'{ref_path}_{chunk_idx + 1}'
 
                 collection.delete(ids=[chunk_id])

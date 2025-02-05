@@ -16,6 +16,8 @@ from utils.chroma import get_chroma_client
 from utils.streamlit_conf import *
 from utils.llm_agent import OllamaAgent
 
+from langchain_ollama import OllamaEmbeddings
+
 client = get_chroma_client(
     os.environ.get('CHROMA_HOST', 'localhost'),
     int(os.environ.get('CHROMA_PORT', '8200')),
@@ -30,6 +32,19 @@ with st.sidebar:
     llm_model_name = st.selectbox("Select LLM Model", LLM_CHOICES, index=DEFAULT_LLM_IDX)
     temperature = st.slider("Temperature", 0.1, 1.0, 1.0, 0.1)
     llm_agent = OllamaAgent(llm_model_name, temperature)
+    embedding_model_name = st.selectbox(
+        "Select Embedding Model", EMBEDDING_CHOICES, index=DEFAULT_EMBEDDING_IDX
+    )
+
+    st.write('---')
+
+    with st.spinner('Loading Chroma collection...'):
+        collection = client.get_or_create_collection(
+            name=CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"}
+        )
+        # get number of documents in collection
+        num_docs = collection.count()
+        st.write(f'Number of documents in collection: {num_docs}')
 
 
 def render_chat_messages(messages):
@@ -39,19 +54,37 @@ def render_chat_messages(messages):
             st.write(message['text'])
 
 
+embedding_model = embedding_model = OllamaEmbeddings(model=embedding_model_name)
+
+
 render_chat_messages(st.session_state.messages)
 
 if prompt := st.chat_input("Message to LLM"):
     # display user message
     with st.chat_message("user"):
         st.write(prompt)
+        prompt_embedding = embedding_model.embed_query(prompt)
     # add message to history
     st.session_state.messages.append({"role": "user", "text": prompt})
 
+    query_res = collection.query(query_embeddings=[prompt_embedding], n_results=10)
+    query_df = pd.DataFrame(
+        {
+            'metadata': query_res['metadatas'][0],
+            'document': query_res['documents'][0],
+            'distance': query_res['distances'][0],
+        }
+    )
+    query_df['path'] = query_df['metadata'].apply(lambda x: x['file'])
+    query_df['chunk_id'] = query_df['metadata'].apply(lambda x: x['chunk_id'])
+    query_df.drop(columns=['metadata'], inplace=True)
+
+    st.dataframe(query_df)
+
     # generate response and display it
-    with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            response = llm_agent.chat(st.session_state.messages)
-        st.write(response)
-    # add message to history
-    st.session_state.messages.append({"role": "ai", "text": response})
+    # with st.chat_message("assistant"):
+    #     with st.spinner("Thinking..."):
+    #         response = llm_agent.chat(st.session_state.messages)
+    #     st.write(response)
+    # # add message to history
+    # st.session_state.messages.append({"role": "ai", "text": response})
