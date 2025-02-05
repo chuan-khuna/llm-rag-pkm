@@ -30,6 +30,10 @@ class LLMAgentBase:
         response = self.llm.invoke(history)
         return response.content
 
+    def stream(self, messages: list[dict]) -> str:
+        history = self.generate_message_history(messages)
+        return self.llm.stream(history)
+
 
 # class GeminiAgent:
 #     def __init__(self, model: str, api_key: str):
