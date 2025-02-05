@@ -1,0 +1,3 @@
+LLM_CHOICES = ["llama3.2:1b-instruct-fp16", "gemma2:2b"]
+DEFAULT_LLM_CHOICE = "gemma2:2b"
+DEFAULT_LLM_IDX = LLM_CHOICES.index(DEFAULT_LLM_CHOICE)

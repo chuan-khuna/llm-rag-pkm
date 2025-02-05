@@ -16,7 +16,6 @@ from utils.chroma import get_chroma_client
 from utils.streamlit_conf import *
 from utils.llm_agent import OllamaAgent
 
-
 client = get_chroma_client(
     os.environ.get('CHROMA_HOST', 'localhost'),
     int(os.environ.get('CHROMA_PORT', '8200')),
@@ -33,10 +32,26 @@ with st.sidebar:
     llm_agent = OllamaAgent(llm_model_name, temperature)
 
 
-with st.spinner('Loading data...'):
-    md_files = list_all_files(RAG_DATA_DIR, '.md')
+def render_chat_messages(messages):
+    for message in messages:
+        role = message['role']
+        with st.chat_message(role):
+            st.write(message['text'])
 
-df = pd.DataFrame(md_files, columns=['abs_path'])
-df['path'] = df['abs_path'].apply(
-    lambda x: split_readable_file_path(split_by=os.path.join(APP_DIR, '..'), file_path=x)
-)
+
+render_chat_messages(st.session_state.messages)
+
+if prompt := st.chat_input("Message to LLM"):
+    # display user message
+    with st.chat_message("user"):
+        st.write(prompt)
+    # add message to history
+    st.session_state.messages.append({"role": "user", "text": prompt})
+
+    # generate response and display it
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            response = llm_agent.chat(st.session_state.messages)
+        st.write(response)
+    # add message to history
+    st.session_state.messages.append({"role": "ai", "text": response})
