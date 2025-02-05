@@ -56,6 +56,7 @@ def render_chat_messages(messages):
 
 embedding_model = embedding_model = OllamaEmbeddings(model=embedding_model_name)
 
+st.write('what is functional programming?')
 
 render_chat_messages(st.session_state.messages)
 
@@ -78,13 +79,39 @@ if prompt := st.chat_input("Message to LLM"):
     query_df['path'] = query_df['metadata'].apply(lambda x: x['file'])
     query_df['chunk_id'] = query_df['metadata'].apply(lambda x: x['chunk_id'])
     query_df.drop(columns=['metadata'], inplace=True)
-
-    st.dataframe(query_df)
+    query_df = query_df.reset_index().rename(columns={'index': 'ref_id'})
+    query_df['ref_id'] += 1
 
     # generate response and display it
-    # with st.chat_message("assistant"):
-    #     with st.spinner("Thinking..."):
-    #         response = llm_agent.chat(st.session_state.messages)
-    #     st.write(response)
-    # # add message to history
-    # st.session_state.messages.append({"role": "ai", "text": response})
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            old_messages = st.session_state.messages[1:]
+
+            rag_prompt = f"""
+User question: {st.session_state.messages[-1]['text']}
+
+Here are the references that I found in the database:
+
+```
+{query_df.to_markdown(index=False)}
+```
+
+Please provide answer to the user question.
+
+When you generate answer from the reference please provide the reference id to the source, please use IEEE format, ie <your answer> [<ref_id>].
+
+Example:
+Question: What is functional programming?
+Answer: 
+- In computer science, functional programming is a programming paradigm where programs are constructed by applying and composing functions. [1] 
+- Functional programming is a stle of writing program. [2]
+"""
+            with st.expander("RAG Prompt"):
+                st.write(rag_prompt)
+
+            response = llm_agent.chat(old_messages + [{'role': 'user', 'text': rag_prompt}])
+        st.write(response)
+        st.dataframe(query_df)
+
+    # add message to history
+    st.session_state.messages.append({"role": "ai", "text": response})
