@@ -54,7 +54,7 @@ def render_chat_messages(messages):
             st.write(message['text'])
 
 
-embedding_model = embedding_model = OllamaEmbeddings(model=embedding_model_name)
+embedding_model = OllamaEmbeddings(model=embedding_model_name)
 
 
 render_chat_messages(st.session_state.messages)

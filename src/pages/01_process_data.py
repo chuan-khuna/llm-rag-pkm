@@ -59,7 +59,7 @@ df['path'] = df['abs_path'].apply(
     lambda x: split_readable_file_path(split_by=os.path.join(APP_DIR, '..'), file_path=x)
 )
 
-embedding_model = embedding_model = OllamaEmbeddings(model=embedding_model_name)
+embedding_model = OllamaEmbeddings(model=embedding_model_name)
 splitter = markdown_textsplitter.MarkdownTextSplitter()
 
 
