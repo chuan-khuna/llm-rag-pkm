@@ -7,9 +7,6 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 
 class LLMAgentBase:
-    def __init__(self, model: str):
-        self.llm = None
-
     def generate_message_history(self, messages):
         history = []
         for message in messages:
