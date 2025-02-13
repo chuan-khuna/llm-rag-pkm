@@ -6,29 +6,31 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 
+def generate_message_history(messages):
+    history = []
+    for message in messages:
+        if message['role'] == 'user':
+            history.append(HumanMessage(message['text']))
+        elif message['role'] == 'agent' or message['role'] == 'ai':
+            history.append(AIMessage(message['text']))
+        else:
+            history.append(SystemMessage(message['text']))
+    return history
+
+
 class LLMAgentBase:
-    def generate_message_history(self, messages):
-        history = []
-        for message in messages:
-            if message['role'] == 'user':
-                history.append(HumanMessage(message['text']))
-            elif message['role'] == 'agent' or message['role'] == 'ai':
-                history.append(AIMessage(message['text']))
-            else:
-                history.append(SystemMessage(message['text']))
-        return history
 
     def answer(self, prompt: str) -> str:
         response = self.llm.invoke([HumanMessage(prompt)])
         return response.content
 
     def chat(self, messages: list[dict]) -> str:
-        history = self.generate_message_history(messages)
+        history = generate_message_history(messages)
         response = self.llm.invoke(history)
         return response.content
 
     def stream(self, messages: list[dict]) -> str:
-        history = self.generate_message_history(messages)
+        history = generate_message_history(messages)
         return self.llm.stream(history)
 
 
@@ -50,3 +52,4 @@ class LangChainGeminiAgent(LLMAgentBase):
 class OllamaAgent(LLMAgentBase):
     def __init__(self, model: str, temperature: float):
         self.llm = ChatOllama(model=model, temperature=temperature)
+        self.llm_json = ollama.get_ollama_json(model=model, temperature=temperature, format="json")

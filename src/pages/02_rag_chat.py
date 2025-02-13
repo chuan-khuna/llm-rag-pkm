@@ -6,6 +6,7 @@ import pandas as pd
 
 
 from langchain_chroma import Chroma
+from langchain_ollama import ChatOllama
 from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import markdown as markdown_textsplitter
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -20,7 +21,9 @@ from utils.streamlit_conf import (
     LLM_CHOICES,
     DEFAULT_LLM_IDX,
 )
-from utils.llm_agent import OllamaAgent
+from utils.llm_utils import generate_message_history
+
+from components.sidebar import sidebar
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -41,23 +44,7 @@ client = get_chroma_client(
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 
-with st.sidebar:
-    llm_model_name = st.selectbox("Select LLM Model", LLM_CHOICES, index=DEFAULT_LLM_IDX)
-    temperature = st.slider("Temperature", 0.0, 1.0, 0.0, 0.1)
-    llm_agent = OllamaAgent(llm_model_name, temperature)
-    embedding_model_name = st.selectbox(
-        "Select Embedding Model", EMBEDDING_CHOICES, index=DEFAULT_EMBEDDING_IDX
-    )
-
-    st.write('---')
-
-    with st.spinner('Loading Chroma collection...'):
-        collection = client.get_or_create_collection(
-            name=CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"}
-        )
-        # get number of documents in collection
-        num_docs = collection.count()
-        st.write(f'Number of documents in collection: {num_docs}')
+llm_model_name, temperature, embedding_model_name = sidebar(client)
 
 
 def render_chat_messages(messages):
@@ -67,8 +54,13 @@ def render_chat_messages(messages):
             st.write(message['text'])
 
 
+# intialise LLM and embedding models
+llm = ChatOllama(model=llm_model_name, temperature=temperature)
+llm_json_mode = ChatOllama(model=llm_model_name, temperature=temperature, format="json")
 embedding_model = OllamaEmbeddings(model=embedding_model_name)
-
+collection = client.get_or_create_collection(
+    name=CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"}
+)
 
 render_chat_messages(st.session_state.messages)
 
@@ -127,8 +119,9 @@ Use IEEE format, for example <your answer from the DOCUMENT> [<ref_id>].
         stream_result = ""
 
         def stream_data():
-            for chunk in llm_agent.stream([{'role': 'user', 'text': rag_prompt}]):
-                global stream_result
+            global stream_result
+            messages = generate_message_history([{'role': 'user', 'text': rag_prompt}])
+            for chunk in llm.stream(messages):
                 stream_result += chunk.content
                 yield chunk
 

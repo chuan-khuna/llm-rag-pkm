@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import pandas as pd
 
 from langchain_chroma import Chroma
+from langchain_ollama import ChatOllama
 from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import markdown as markdown_textsplitter
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -19,7 +20,8 @@ from utils.streamlit_conf import (
     LLM_CHOICES,
     DEFAULT_LLM_IDX,
 )
-from utils.llm_agent import OllamaAgent
+from utils.llm_utils import OllamaAgent
+from components.sidebar import sidebar
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 APP_DIR = os.path.join(CURRENT_DIR, '..')
@@ -35,29 +37,7 @@ client = get_chroma_client(
 )
 
 
-with st.sidebar:
-    llm_model_name = st.selectbox("Select LLM Model", LLM_CHOICES, index=DEFAULT_LLM_IDX)
-    temperature = st.slider("Temperature", 0.0, 1.0, 0.0, 0.1)
-    llm_agent = OllamaAgent(llm_model_name, temperature)
-
-    embedding_model_name = st.selectbox(
-        "Select Embedding Model", EMBEDDING_CHOICES, index=DEFAULT_EMBEDDING_IDX
-    )
-
-    st.write('---')
-
-    with st.spinner('Loading Chroma collection...'):
-        collection = client.get_or_create_collection(
-            name=CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"}
-        )
-        # get number of documents in collection
-        num_docs = collection.count()
-        st.write(f'Number of documents in collection: {num_docs}')
-
-        if st.button('Delete collection'):
-            with st.spinner('Deleting Chroma collection...'):
-                client.delete_collection(CHROMA_COLLECTION_NAME)
-
+llm_model_name, temperature, embedding_model_name = sidebar(client, hide_delete_collection=False)
 
 with st.spinner('Loading data...'):
     md_files = list_all_files(RAG_DATA_DIR, '.md')
@@ -67,11 +47,13 @@ df['path'] = df['abs_path'].apply(
     lambda x: split_readable_file_path(split_by=os.path.join(APP_DIR, '..'), file_path=x)
 )
 
+# intialise LLM and embedding models
+llm = ChatOllama(model=llm_model_name, temperature=temperature)
+llm_json_mode = ChatOllama(model=llm_model_name, temperature=temperature, format="json")
 embedding_model = OllamaEmbeddings(model=embedding_model_name)
 vectorstore = Chroma(
     client=client, collection_name=CHROMA_COLLECTION_NAME, embedding_function=embedding_model
 )
-
 splitter = markdown_textsplitter.MarkdownTextSplitter()
 
 
@@ -81,11 +63,11 @@ if st.button('Process data'):
         abs_path = row['abs_path']
         ref_path = row['path']
 
-        st.toast(f'Processing `{ref_path}` ...')
-
         with open(abs_path, 'r') as f:
             content = f.read()
             chunks = splitter.split_text(content)
+
+            st.toast(f'Processing `{ref_path}` ({len(chunks)} chunks)')
 
             for chunk_idx, chunk_content in enumerate(chunks):
                 metadata = {'file': ref_path, 'chunk_id': chunk_idx + 1}
