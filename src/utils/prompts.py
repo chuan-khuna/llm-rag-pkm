@@ -12,8 +12,10 @@ Now, review the user question:
 
 {question}
 
-Provide an answer to this questions using only the above context. 
+Provide an answer to this questions using only the above context.
 
-Use three sentences maximum and keep the answer concise.
+Keep your answer concise and clear.
 
 Answer:"""
+
+# Also provide the reference to the context you used, by adding `ref_id` at the end of sentence. (Use IEEE citation style, e.g. [1])
