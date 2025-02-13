@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 import pandas as pd
 
+
 from langchain_chroma import Chroma
 from langchain_ollama import ChatOllama
 from langchain_ollama import OllamaEmbeddings
@@ -11,7 +12,7 @@ from langchain_text_splitters import markdown as markdown_textsplitter
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
-from utils.file_utils import list_all_files, split_readable_file_path
+
 from utils.chroma import get_chroma_client
 from utils.streamlit_conf import (
     CHROMA_COLLECTION_NAME,
@@ -20,7 +21,8 @@ from utils.streamlit_conf import (
     LLM_CHOICES,
     DEFAULT_LLM_IDX,
 )
-from utils.llm_utils import OllamaAgent
+from utils.file_utils import list_all_files, split_readable_file_path
+
 from components.sidebar import sidebar
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
