@@ -3,6 +3,7 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 import pandas as pd
+import json
 
 
 from langchain_chroma import Chroma
@@ -22,6 +23,7 @@ from utils.streamlit_conf import (
     DEFAULT_LLM_IDX,
 )
 from utils.llm_utils import generate_message_history
+from utils.prompts import rag_prompt
 
 from components.sidebar import sidebar
 
@@ -58,9 +60,13 @@ def render_chat_messages(messages):
 llm = ChatOllama(model=llm_model_name, temperature=temperature)
 llm_json_mode = ChatOllama(model=llm_model_name, temperature=temperature, format="json")
 embedding_model = OllamaEmbeddings(model=embedding_model_name)
+vectorstore = Chroma(
+    client=client, collection_name=CHROMA_COLLECTION_NAME, embedding_function=embedding_model
+)
 collection = client.get_or_create_collection(
     name=CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"}
 )
+retriever = vectorstore.as_retriever(k=10)
 
 render_chat_messages(st.session_state.messages)
 
@@ -72,17 +78,18 @@ if prompt := st.chat_input("Message to LLM"):
     # add message to history
     st.session_state.messages.append({"role": "user", "text": prompt})
 
-    query_res = collection.query(query_embeddings=[prompt_embedding], n_results=10)
-    query_df = pd.DataFrame(
-        {
-            'metadata': query_res['metadatas'][0],
-            'document': query_res['documents'][0],
-            'distance': query_res['distances'][0],
-        }
-    )
-    query_df['path'] = query_df['metadata'].apply(lambda x: x['file'])
-    query_df['chunk_id'] = query_df['metadata'].apply(lambda x: x['chunk_id'])
-    query_df.drop(columns=['metadata'], inplace=True)
+    # retrieve documents, convert as data frame
+    retrieved_docs = retriever.invoke(prompt)
+    retrieved_docs_dict = []
+    for doc in retrieved_docs:
+        retrieved_docs_dict.append(
+            {
+                'path': doc.metadata.get('file'),
+                'chunk_id': doc.metadata.get('chunk_id'),
+                'content': doc.page_content,
+            }
+        )
+    query_df = pd.DataFrame(retrieved_docs_dict)
     query_df = query_df.reset_index().rename(columns={'index': 'ref_id'})
     query_df['ref_id'] += 1
 
@@ -90,43 +97,30 @@ if prompt := st.chat_input("Message to LLM"):
     with st.chat_message("assistant"):
         old_messages = st.session_state.messages[1:]
 
-        rag_prompt = f"""
-User question: {st.session_state.messages[-1]['text']}
+        rag_prompt_formatted = rag_prompt.format(
+            question=st.session_state.messages[-1]['text'],
+            context=json.dumps(query_df.to_dict(orient='records'), indent=2),
+        )
 
-Here are the references that I found in the database:
+        rag_col, ref_col = st.columns(2)
+        with rag_col:
+            with st.popover("RAG Prompt"):
+                st.write(rag_prompt_formatted)
 
-
-<DOCUMENTS>
-
-```
-{query_df.to_markdown(index=False)}
-```
-
-</DOCUMENTS>
-
-
-<INSTRUCTIONS>
-You must provide answer to the user question based on the DOCUMENTS provided above.
-
-When you generate answer from the DOCUMENTS.
-You must provide the reference id to the source. 
-Use IEEE format, for example <your answer from the DOCUMENT> [<ref_id>].
-</INSTRUCTIONS>
-"""
-        with st.expander("RAG Prompt"):
-            st.write(rag_prompt)
+        with ref_col:
+            with st.popover("Reference Documents"):
+                st.dataframe(query_df)
 
         stream_result = ""
 
         def stream_data():
             global stream_result
-            messages = generate_message_history([{'role': 'user', 'text': rag_prompt}])
+            messages = generate_message_history([{'role': 'user', 'text': rag_prompt_formatted}])
             for chunk in llm.stream(messages):
                 stream_result += chunk.content
                 yield chunk
 
         st.write_stream(stream_data)
-        st.dataframe(query_df)
 
     # add message to history
     st.session_state.messages.append({"role": "ai", "text": stream_result})
