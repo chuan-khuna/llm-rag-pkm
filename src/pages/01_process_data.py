@@ -4,14 +4,22 @@ import os
 from dotenv import load_dotenv
 import pandas as pd
 
+from langchain_chroma import Chroma
+from langchain_ollama import OllamaEmbeddings
+from langchain_text_splitters import markdown as markdown_textsplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 
 from utils.file_utils import list_all_files, split_readable_file_path
 from utils.chroma import get_chroma_client
-from utils.streamlit_conf import *
+from utils.streamlit_conf import (
+    CHROMA_COLLECTION_NAME,
+    EMBEDDING_CHOICES,
+    DEFAULT_EMBEDDING_IDX,
+    LLM_CHOICES,
+    DEFAULT_LLM_IDX,
+)
 from utils.llm_agent import OllamaAgent
-
-from langchain_text_splitters import markdown as markdown_textsplitter
-from langchain_ollama import OllamaEmbeddings
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 APP_DIR = os.path.join(CURRENT_DIR, '..')
@@ -29,7 +37,7 @@ client = get_chroma_client(
 
 with st.sidebar:
     llm_model_name = st.selectbox("Select LLM Model", LLM_CHOICES, index=DEFAULT_LLM_IDX)
-    temperature = st.slider("Temperature", 0.1, 1.0, 1.0, 0.1)
+    temperature = st.slider("Temperature", 0.0, 1.0, 0.0, 0.1)
     llm_agent = OllamaAgent(llm_model_name, temperature)
 
     embedding_model_name = st.selectbox(
@@ -60,6 +68,10 @@ df['path'] = df['abs_path'].apply(
 )
 
 embedding_model = OllamaEmbeddings(model=embedding_model_name)
+vectorstore = Chroma(
+    client=client, collection_name=CHROMA_COLLECTION_NAME, embedding_function=embedding_model
+)
+
 splitter = markdown_textsplitter.MarkdownTextSplitter()
 
 
@@ -69,20 +81,21 @@ if st.button('Process data'):
         abs_path = row['abs_path']
         ref_path = row['path']
 
-        st.toast(f'Processing {ref_path} ...')
+        st.toast(f'Processing `{ref_path}` ...')
 
         with open(abs_path, 'r') as f:
             content = f.read()
             chunks = splitter.split_text(content)
 
-            for chunk_idx, chunk in enumerate(chunks):
+            for chunk_idx, chunk_content in enumerate(chunks):
                 metadata = {'file': ref_path, 'chunk_id': chunk_idx + 1}
-                doc = chunk
-                embedding = embedding_model.embed_query(content)
                 chunk_id = f'{ref_path}_{chunk_idx + 1}'
 
                 collection.delete(ids=[chunk_id])
-
-                collection.add(
-                    documents=[doc], embeddings=[embedding], metadatas=[metadata], ids=[chunk_id]
+                doc_obj = Document(
+                    page_content=chunk_content,
+                    metadata={'file': ref_path, 'chunk_id': chunk_idx + 1},
+                    id=chunk_id,
                 )
+
+                vectorstore.add_documents(documents=[doc_obj], ids=[chunk_id])

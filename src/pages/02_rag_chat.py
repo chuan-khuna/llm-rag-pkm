@@ -4,19 +4,32 @@ import os
 from dotenv import load_dotenv
 import pandas as pd
 
+
+from langchain_chroma import Chroma
+from langchain_ollama import OllamaEmbeddings
+from langchain_text_splitters import markdown as markdown_textsplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
+
+
+from utils.chroma import get_chroma_client
+from utils.streamlit_conf import (
+    CHROMA_COLLECTION_NAME,
+    EMBEDDING_CHOICES,
+    DEFAULT_EMBEDDING_IDX,
+    LLM_CHOICES,
+    DEFAULT_LLM_IDX,
+)
+from utils.llm_agent import OllamaAgent
+
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 APP_DIR = os.path.join(CURRENT_DIR, '..')
 load_dotenv(dotenv_path=os.path.join(APP_DIR, '..', '.env'))
 
+
 RAG_DATA_DIR = os.path.join(APP_DIR, '..', 'rag-data')
 
-
-from utils.file_utils import list_all_files, split_readable_file_path
-from utils.chroma import get_chroma_client
-from utils.streamlit_conf import *
-from utils.llm_agent import OllamaAgent
-
-from langchain_ollama import OllamaEmbeddings
 
 client = get_chroma_client(
     os.environ.get('CHROMA_HOST', 'localhost'),
@@ -30,7 +43,7 @@ if 'messages' not in st.session_state:
 
 with st.sidebar:
     llm_model_name = st.selectbox("Select LLM Model", LLM_CHOICES, index=DEFAULT_LLM_IDX)
-    temperature = st.slider("Temperature", 0.1, 1.0, 1.0, 0.1)
+    temperature = st.slider("Temperature", 0.0, 1.0, 0.0, 0.1)
     llm_agent = OllamaAgent(llm_model_name, temperature)
     embedding_model_name = st.selectbox(
         "Select Embedding Model", EMBEDDING_CHOICES, index=DEFAULT_EMBEDDING_IDX
