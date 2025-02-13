@@ -48,6 +48,8 @@ if 'messages' not in st.session_state:
 
 llm_model_name, temperature, embedding_model_name = sidebar(client)
 
+st.write('how to choose colour for data visualisation')
+
 
 def render_chat_messages(messages):
     for message in messages:
@@ -89,27 +91,21 @@ if prompt := st.chat_input("Message to LLM"):
                 'content': doc.page_content,
             }
         )
-    query_df = pd.DataFrame(retrieved_docs_dict)
-    query_df = query_df.reset_index().rename(columns={'index': 'ref_id'})
-    query_df['ref_id'] += 1
+    reference_df = pd.DataFrame(retrieved_docs_dict)
+    reference_df = reference_df.reset_index().rename(columns={'index': 'ref_id'})
+    reference_df['ref_id'] += 1
 
     # generate response and display it
     with st.chat_message("assistant"):
         old_messages = st.session_state.messages[1:]
-
+        last_message = st.session_state.messages[-1]['text']
         rag_prompt_formatted = rag_prompt.format(
-            question=st.session_state.messages[-1]['text'],
-            context=json.dumps(query_df.to_dict(orient='records'), indent=2),
+            question=last_message,
+            context=json.dumps(reference_df.to_dict(orient='records'), indent=2),
         )
 
-        rag_col, ref_col = st.columns(2)
-        with rag_col:
-            with st.popover("RAG Prompt"):
-                st.write(rag_prompt_formatted)
-
-        with ref_col:
-            with st.popover("Reference Documents"):
-                st.dataframe(query_df)
+        with st.popover("RAG Prompt"):
+            st.write(rag_prompt_formatted)
 
         stream_result = ""
 
@@ -121,6 +117,10 @@ if prompt := st.chat_input("Message to LLM"):
                 yield chunk
 
         st.write_stream(stream_data)
+
+        st.write('---')
+        with st.expander("Rerference"):
+            st.write(reference_df)
 
     # add message to history
     st.session_state.messages.append({"role": "ai", "text": stream_result})
