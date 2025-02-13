@@ -57,7 +57,9 @@ vectorstore = Chroma(
     client=client, collection_name=CHROMA_COLLECTION_NAME, embedding_function=embedding_model
 )
 splitter = markdown_textsplitter.MarkdownTextSplitter()
-
+collection = client.get_or_create_collection(
+    name=CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"}
+)
 
 if st.button('Process data'):
 
@@ -75,7 +77,7 @@ if st.button('Process data'):
                 metadata = {'file': ref_path, 'chunk_id': chunk_idx + 1}
                 chunk_id = f'{ref_path}_{chunk_idx + 1}'
 
-                collection.delete(ids=[chunk_id])
+                vectorstore.delete(ids=[chunk_id])
                 doc_obj = Document(
                     page_content=chunk_content,
                     metadata={'file': ref_path, 'chunk_id': chunk_idx + 1},
