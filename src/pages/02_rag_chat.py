@@ -48,8 +48,6 @@ if 'messages' not in st.session_state:
 
 llm_model_name, temperature, embedding_model_name = sidebar(client)
 
-st.write('how to choose colour for data visualisation')
-
 
 def render_chat_messages(messages):
     for message in messages:
